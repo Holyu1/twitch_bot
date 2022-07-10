@@ -1,0 +1,62 @@
+const tmi = require('tmi.js');
+var mysql = require('mysql');
+const client = new tmi.Client({
+	options: { debug: true },
+	identity: {
+		username: 'krbybot',
+		password: 'oauth:9qxx8mf9edzcuw0n8tjy9xr7175bri'
+	},
+	channels: [ 'blueKrby' ]
+})
+const channels = ['bluekrby']
+const con = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "frumos23455",
+  database: "listt",
+});
+const badwords= ['cunt', 'bitch', "fuck", "retard", "retarded", "dumbass", "dumbas"]
+con.connect(function(err) {
+  	console.log("Connected!");
+client.connect().catch(console.error);
+client.on('message', (channel, tags, message, self) => {
+	if(self) return;
+	var warns = 0;
+	let myword = message.split(" ")
+    let command = myword[0]
+    let target = myword[1]
+    let reason = myword.slice(2).join(' ')
+	const check = badwords.some(element => message.includes(element));
+	if(check && `${tags['mod']}` !== `true` && tags.username !== "bluekrby")
+	{
+		warns = warns + 1;
+		con.query(`SELECT username FROM ban_list WHERE EXISTS (SELECT username FROM ban_list WHERE "${tags.username}" = username)`, function(err,result,fields) {
+		if(err) throw err
+		if(typeof result[0] === "undefined")
+		{
+			con.query(`INSERT INTO ban_list (username,warns) VALUES ('${tags.username}', ${warns})`)
+			client.whisper(tags.username, `You've got a warning for swearing/insulting, it is the last until a permaban is occured`)
+		}else
+		{
+			con.query(`UPDATE ban_list SET warns = warns + 1 where username = "${tags.username}"`)
+		}
+	    con.query(`SELECT warns from ban_list WHERE username = "${tags.username}"`, function (err,result,fields){
+			if(err) throw err
+		    warns2 = result[0].warns
+		if(warns2 === 2 )
+		{
+			var delete_user = `DELETE FROM ban_list WHERE warns = 2 AND username = '${tags.username}' `
+			con.query(delete_user, function(err,result)
+			{
+              console.log(`${tags.username} has been perma banned`)
+			  client.ban(channel,tags.username)
+ 			})
+		}
+	});
+	})
+	}else if(check && `${tags['mod']}` === 'true')
+	{
+		client.whisper(channels,`One of your mods, ${tags.username}, has said something that breaks badwords`)
+	}
+});
+})
