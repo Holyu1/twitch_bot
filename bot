@@ -1,14 +1,15 @@
 const tmi = require('tmi.js');
-var mysql = require('mysql');
+const mysql = require('mysql');
+const excel = require('exceljs');
+const axios = require('axios');
 const client = new tmi.Client({
 	options: { debug: true },
 	identity: {
 		username: 'krbybot',
 		password: 'oauth:9qxx8mf9edzcuw0n8tjy9xr7175bri'
 	},
-	channels: [ 'blueKrby' ]
+	channels: [ 'krbybozo' ]
 })
-const channels = ['bluekrby']
 const con = mysql.createConnection({
   host: "localhost",
   user: "root",
@@ -20,43 +21,158 @@ con.connect(function(err) {
   	console.log("Connected!");
 client.connect().catch(console.error);
 client.on('message', (channel, tags, message, self) => {
+	const name = channel.replace('#', "")
 	if(self) return;
 	var warns = 0;
-	let myword = message.split(" ")
-    let command = myword[0]
-    let target = myword[1]
-    let reason = myword.slice(2).join(' ')
-	const check = badwords.some(element => message.includes(element));
-	if(check && `${tags['mod']}` !== `true` && tags.username !== "bluekrby")
+	let check = badwords.some(element => message.includes(element));
+	// profanity filter ca asta n-a vazut nici franta
+	if(check /*&& `${tags['mod']}` !== `true` && tags.username !== name*/)
 	{
 		warns = warns + 1;
-		con.query(`SELECT username FROM ban_list WHERE EXISTS (SELECT username FROM ban_list WHERE "${tags.username}" = username)`, function(err,result,fields) {
-		if(err) throw err
-		if(typeof result[0] === "undefined")
-		{
-			con.query(`INSERT INTO ban_list (username,warns) VALUES ('${tags.username}', ${warns})`)
-			client.whisper(tags.username, `You've got a warning for swearing/insulting, it is the last until a permaban is occured`)
-		}else
-		{
-			con.query(`UPDATE ban_list SET warns = warns + 1 where username = "${tags.username}"`)
-		}
-	    con.query(`SELECT warns from ban_list WHERE username = "${tags.username}"`, function (err,result,fields){
+		con.query(`SELECT username FROM list WHERE EXISTS (SELECT username FROM list WHERE "${tags.username}" = username)`, function(err,user,fields) {
 			if(err) throw err
-		    warns2 = result[0].warns
-		if(warns2 === 2 )
-		{
-			var delete_user = `DELETE FROM ban_list WHERE warns = 2 AND username = '${tags.username}' `
-			con.query(delete_user, function(err,result)
+			if(typeof user[0] === "undefined")
 			{
-              console.log(`${tags.username} has been perma banned`)
-			  client.ban(channel,tags.username)
+				con.query(`INSERT INTO list (username,warns) VALUES ('${tags.username}', ${warns})`)
+			}else
+			{
+				con.query(`UPDATE list SET warns = warns + 1 where username = "${tags.username}"`)
+			}
+	    con.query(`SELECT warns from list WHERE username = "${tags.username}"`, function (err,result,fields){
+			var warns2 = result[0].warns
+			if(warns2 === 3 )
+			{
+				con.query(`DELETE FROM list WHERE warns = 3 AND username = '${tags.username}' `, function(err,result)
+				{
+              		console.log(`${tags.username} has been perma banned`)
+			  		client.ban(channel,tags.username)
+			  		con.query(`SELECT user FROM ban_list WHERE EXISTS (SELECT user FROM list WHERE "${tags.username}" = user)`, function(err,banneduser,fields) {
+			  			if(typeof banneduser[0] === 'undefined')
+			  			{
+			      			con.query(`INSERT INTO ban_list (user,channel) VALUES ('${tags.username}','${name}')`)
+			  			}
+			  })
  			})
-		}
+			}else if (warns2 === 2)
+			{
+				client.whisper(tags.username, `You've got a warning for breaking the rules, it's the last until a permaban; rules: https://docs.google.com/document/d/1Ixpc-avjvunlz1Xo74B781IbP9i0exeYI5VkL6Rfdx4/edit?usp=sharing `)
+				//client.timeout(channel, tags.username,604800,stop being rude)
+			}else
+			{
+				client.whisper(tags.username, `You've got a warning for breaking the rules, it's the second last until a permaban; rules: https://docs.google.com/document/d/1Ixpc-avjvunlz1Xo74B781IbP9i0exeYI5VkL6Rfdx4/edit?usp=sharing `)
+				//client.timeout(channel,tags.username,604800,stop being rude)
+			}
 	});
-	})
+})
 	}else if(check && `${tags['mod']}` === 'true')
 	{
-		client.whisper(channels,`One of your mods, ${tags.username}, has said something that breaks badwords`)
+		client.whisper(channel,`One of your mods, ${tags.username}, has said something that breaks badwords`)
 	}
-});
+	// aici bozo bagi comenzi
+	if(message.startsWith('!'))
+	{
+	let myword = message.replace('!', "").split(" ")
+	let command = myword[0]
+	let target = myword[1]
+	let reason = myword.slice(2).join(' ')
+       if(command === "social")
+	   {
+			client.say(channel,`@${tags.username} yo check out my socials here: https://linktr.ee/${name} `)
+	   }
+	   if(`${tags['mod']}` === `true` || tags.username === name)
+	   {
+		if(command === "banlist")
+		{
+			con.query(`SELECT COUNT (user) FROM ban_list where channel = '${name}'`, function(err,buser,fields) {
+				if(err) throw err
+				con.query(`SELECT user from ban_list where channel = '${name}'`, function(err,ban,fields) {
+				if(err) throw err
+				if(typeof ban[0] !== 'undefined')
+				{
+				for(var i=0;i<=buser.length-1;i++)
+				{
+				 client.whisper(channel, ban[i].user)
+				}
+			    }
+			})
+			})
+		}
+		if(command === 'subs')
+		{
+             con.query(`SELECT COUNT (username) from sublist where channel = '${name}'`, function(err,sub,fields) {
+				if(err) throw err
+				client.whisper(tags.username, `${name}'s channel has ${sub.length} subscribers`)
+		})
+		}
+	   	if(target !== 'undefined')
+	    {
+			if(command === "spam")
+			{
+				for(var i=1;i<=5;i++)
+				{
+					client.say(channel, `${target}`)
+				}
+	    	}
+			if(command === 'warns')
+			{
+            	con.query(`SELECT warns from list WHERE username = "${target}"`, function (err,result,fields){
+					if(typeof result[0] === 'undefined')
+					{
+						client.whisper(tags.username,`${target} has no warnings!!!!`)
+					}else
+					{
+						if(result[0].warns === 1)
+						{
+							client.whisper(tags.username, `${target} has 1 warning!!!!`)
+						}else
+						{
+							client.whisper(tags.username, `${target} has ${result[0].warns} warnings!!!!`)
+						}
+					}
+			    })
+		}
+	  	}
+		}
+		// client.deletemessage(channel, tags['id'])
+	}
+})
+//aici bozo subs
+client.on('subscription',(channel,user, method, message, tags) => {
+const name = channel.replace('#', "")
+con.query(`SELECT username FROM sublist WHERE EXISTS (SELECT username FROM sublist WHERE "${user}" = username)`, function(err,result,fields) {
+   if(err) throw err
+   if(typeof result[0] === 'undefined' )
+   {
+	 con.query(`INSERT INTO sublist (username,channel) VALUES ('${user}','${name}') `)
+   }
+})
+if(tags['message-type'] === 'sub')
+{
+if(tags['msg-param-sub-plan'] === '1000')
+{
+   client.say(channel,`@${user} has subbed for ${tags['msg-param-cumulative-months']} months for tier 1! POG POG POG` )
+}else if (tags['msg-param-sub-plan'] === '2000')
+{
+	client.say(channel,`@${user} has subbed for ${tags['msg-param-cumulative-months']} months for tier 2! POG POG POG` )
+}else if (tags['msg-param-sub-plan'] === '3000')
+{
+	client.say(channel,`@${user} has subbed for ${tags['msg-param-cumulative-months']} months for tier 3! POG POG POG` )
+}else
+{
+	client.say(channel,`@${user} has subbed with Prime for ${tags['msg-param-cumulative-months']} months` )
+}
+}else if (tags['message-type'] === 'resub')
+{
+	client.say(channel,`@${user} has resubbed!!!` )
+}
+})
+  client.on('cheer', (channel,ucheer, cmess) => {
+       client.say(channel, `${ucheer.username} has cheered ${ucheer.bits} bits saying: "${cmess}" POG`)
+  })
+  client.on('hosted',(channel,huser, viewers, autoh) => {
+      client.say(channel, `${huser} has hosted this channel with ${viewers} viewers!!!!`)
+  })
+  client.on('anongiftpaidupgrade',(channel,username,userstate) => {
+      client.say(channel, `${username} is continuing their gift sub!!`)
+  })
 })
