@@ -5,15 +5,15 @@ const axios = require('axios');
 const client = new tmi.Client({
 	options: { debug: true },
 	identity: {
-		username: 'krbybot',
-		password: 'oauth:9qxx8mf9edzcuw0n8tjy9xr7175bri'
+		username: '',
+		password: ''
 	},
-	channels: [ 'krbybozo' ]
+	channels: [ '' ]
 })
 const con = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "frumos23455",
+  password: "",
   database: "listt",
 });
 const badwords= ['cunt', 'bitch', "fuck", "retard", "retarded", "dumbass", "dumbas"]
