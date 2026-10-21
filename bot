@@ -25,7 +25,6 @@ client.on('message', (channel, tags, message, self) => {
 	if(self) return;
 	var warns = 0;
 	let check = badwords.some(element => message.includes(element));
-	// profanity filter ca asta n-a vazut nici franta
 	if(check /*&& `${tags['mod']}` !== `true` && tags.username !== name*/)
 	{
 		warns = warns + 1;
@@ -136,7 +135,6 @@ client.on('message', (channel, tags, message, self) => {
 		// client.deletemessage(channel, tags['id'])
 	}
 })
-//aici bozo subs
 client.on('subscription',(channel,user, method, message, tags) => {
 const name = channel.replace('#', "")
 con.query(`SELECT username FROM sublist WHERE EXISTS (SELECT username FROM sublist WHERE "${user}" = username)`, function(err,result,fields) {
