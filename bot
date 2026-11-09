@@ -67,7 +67,6 @@ client.on('message', (channel, tags, message, self) => {
 	{
 		client.whisper(channel,`One of your mods, ${tags.username}, has said something that breaks badwords`)
 	}
-	// aici bozo bagi comenzi
 	if(message.startsWith('!'))
 	{
 	let myword = message.replace('!', "").split(" ")
